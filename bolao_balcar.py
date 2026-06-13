@@ -7,8 +7,7 @@ from PIL import Image
 import os
 
 # ==============================================================================
-# 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE (APONTANDO PARA FORM_RESPONSES)
-
+# 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE
 # ==============================================================================
 ID_PLANILHA = "1iB69UoTSku2biNsdAUYZrdglQU-m7M_wERQlIKagoDM"
 
@@ -19,7 +18,6 @@ ENTRY_NOME = "entry.1751255709"     # Pergunta 'Participante'
 ENTRY_JOGO = "entry.345816005"      # Pergunta 'Jogo'
 ENTRY_PALPITE = "entry.1813555350"   # Pergunta 'Palpite'
 
-# Links de comunicação direta corrigidos para puxar a aba Form_Responses exibida no print
 URL_JOGOS = f"https://docs.google.com/spreadsheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=jogos"
 URL_PALPITES = f"https://docs.google.com/spreadsheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=Form_Responses"
 
@@ -63,7 +61,7 @@ st.markdown("---")
 # 3. LISTA OFICIAL DE MOTORISTAS BALCAR
 # ==============================================================================
 motoristas_lista = [
-    "104 - Silvio Adriano De Carvalho Silva", "152 - Ranieri Pereira Da Silva",
+    "4 - Balthazar Noel De Souza", "104 - Silvio Adriano De Carvalho Silva", "152 - Ranieri Pereira Da Silva",
     "176 - Samuel Rosa Júnior", "191 - Giorgio Luis Gomes Da Silva", "197 - Johan Delvis Flores ESIS",
     "202 - Mario sergio Bertoldo", "225 - Fabio Correa De Oliveira", "247 - Leticia Aparecida Rodrigues Vieira",
     "267 - Laerte Do Amaral Junior", "269 - Rafael Dos Santos Lima", "285 - Leonardo Mota De Oliveira",
@@ -79,21 +77,17 @@ motoristas_lista = [
 ]
 
 # ==============================================================================
-# 4. SISTEMA DE LEITURA COM EXPIRAÇÃO DE CACHE (ANTI-DUPLICADOS EM TEMPO REAL)
+# 4. SISTEMA DE LEITURA COMPATÍVEL
 # ==============================================================================
 def carregar_jogos():
     try:
-        # Adiciona um marcador de tempo para forçar o Google a mandar os dados mais recentes
-        df = pd.read_csv(f"{URL_JOGOS}&cachebuster={datetime.datetime.now().timestamp()}")
+        df = pd.read_csv(f"{URL_JOGOS}&timestamp={datetime.datetime.now().timestamp()}")
         df.columns = df.columns.str.strip()
         jogos_dict = {}
-        
         for _, row in df.iterrows():
             id_jogo = str(row['Id']).strip()
             encerrado_val = str(row['Encerrado']).strip().upper()
             is_encerrado = True if encerrado_val in ['TRUE', '1', '1.0'] else False
-            
-            # Limpa o nome do confronto retirando espaços extras internos
             confronto_limpo = " ".join(str(row['Confronto']).strip().upper().split())
             
             jogos_dict[id_jogo] = {
@@ -107,12 +101,10 @@ def carregar_jogos():
 
 def carregar_palpites():
     try:
-        df = pd.read_csv(f"{URL_PALPITES}&cachebuster={datetime.datetime.now().timestamp()}")
+        df = pd.read_csv(f"{URL_PALPITES}&timestamp={datetime.datetime.now().timestamp()}")
         df.columns = df.columns.str.strip()
         palpites_lista = []
-        
         col_nome = 'Participante' if 'Participante' in df.columns else df.columns[1]
-        
         for _, row in df.iterrows():
             jogo_limpo = " ".join(str(row['Jogo']).strip().upper().split())
             palpites_lista.append({
@@ -124,7 +116,6 @@ def carregar_palpites():
     except:
         return []
 
-# Carrega os dados mais frescos do servidor do Sheets
 st.session_state.jogos = carregar_jogos()
 st.session_state.palpites = carregar_palpites()
 
@@ -163,21 +154,20 @@ with tab1:
         dados_jogo = jogos_disponiveis[jogo_selecionado]
         nome_confronto = dados_jogo['confronto']
         
-        # Só executa a validação se um motorista real for selecionado
         if nome != "Selecione seu nome...":
             ja_palpitou = False
             palpite_anterior = ""
             
             for p in st.session_state.palpites:
-                # Compara limpando qualquer divergência de maiúsculas/minúsculas e de espaços extras
                 if p["Participante"].strip().lower() == nome.strip().lower() and p["Jogo"] == nome_confronto:
                     ja_palpitou = True
                     palpite_anterior = p["Palpite"]
                     break
             
+            # TEXTO ALTERADO: Mensagem amigável de verificação em formato de alerta informativo
             if ja_palpitou:
-                st.error(f"🚫 {nome}, você já registrou um palpite para {nome_confronto}: **{palpite_anterior}**.")
-                st.info("💡 Não é permitido enviar mais de um palpite por jogo. O seu botão de envio foi bloqueado!")
+                st.warning(f"ℹ️ Olá {nome}! Identificamos que o seu palpite para {nome_confronto} já está registrado no sistema: **{palpite_anterior}**.")
+                st.info("🔒 Como cada motorista pode cadastrar apenas um palpite por jogo, as alterações foram desativadas para esta partida.")
             else:
                 col1, col2 = st.columns(2)
                 times = nome_confronto.split(' X ')
@@ -193,7 +183,8 @@ with tab1:
                     resposta = requests.post(URL_FORM_POST, data=dados_envio)
                     
                     if resposta.status_code == 200 or "formResponse" in resposta.url:
-                        st.success(f"🏁 Palpite computado com sucesso, boa sorte!")
+                        # MENSAGEM EM VERDE DE SUCESSO REAL
+                        st.success("✅ Seu palpite foi registrado com sucesso! Boa sorte na rodada!")
                         st.rerun()
                     else:
                         st.error("❌ Ocorreu um erro ao enviar os dados para a nuvem.")
