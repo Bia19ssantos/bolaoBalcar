@@ -1,5 +1,116 @@
+import streamlit as st
+import pandas as pd
+import requests
+import datetime
+import pytz
+from PIL import Image
+import os
+
+# ==============================================================================
+# 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE (ATUALIZADO COM SEUS LINKS REAIS)
+# ==============================================================================
+# ID da sua planilha do Google Sheets
+ID_PLANILHA = "1iB69UoTSku2biNsdAUYZrdglQU-m7M_wERQlIKagoDM"
+
+# Seus novos IDs reais do Google Forms extraídos com sucesso!
+ID_DO_FORMS = "1FAIpQLScVPiQTPAOdGLFXrXpXuG-GdYs81JX939Qp1GPWf6c-KAyu5Q"
+URL_FORM_POST = f"https://docs.google.com/forms/d/e/{ID_DO_FORMS}/formResponse"
+
+ENTRY_NOME = "entry.1751255709"     # ID da pergunta 'Participante'
+ENTRY_JOGO = "entry.345816005"      # ID da pergunta 'Jogo'
+ENTRY_PALPITE = "entry.1813555350"   # ID da pergunta 'Palpite'
+
+# Links de leitura automática baseados na planilha e aba configuradas
+URL_JOGOS = f"https://docs.google.com/sheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=jogos"
+URL_PALPITES = f"https://docs.google.com/sheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=Form_Responses"
+
+# ==============================================================================
+# 2. CONFIGURAÇÃO VISUAL PREMIUM (MODO ESCURO BALCAR)
+# ==============================================================================
+st.set_page_config(page_title="Bolão BALCAR - Rumo ao Hexa", page_icon="🚖", layout="centered")
+
+st.markdown("""
+    <style>
+    .main { background-color: #000000; color: #ffffff; }
+    .caixa-balcar {
+        background-color: #141414;
+        padding: 20px;
+        border-radius: 12px;
+        border-left: 5px solid #ffffff;
+        margin-bottom: 20px;
+        border-right: 1px solid #222222;
+        border-top: 1px solid #222222;
+        border-bottom: 1px solid #222222;
+    }
+    h1, h2, h3, h4 { color: #ffffff !important; font-family: 'Arial Black', sans-serif; }
+    .stTabs [data-baseweb="tab"] { color: #888888; }
+    .stTabs [data-baseweb="tab"]:hover { color: #ffffff; }
+    .stTabs [data-baseweb="tab"][aria-selected="true"] { color: #ffffff; border-bottom-color: #ffffff; }
+    </style>
+""", unsafe_allow_html=True)
+
+# Centralização da logo da BALCAR no topo
+col_logo_1, col_logo_2, col_logo_3 = st.columns([1, 2, 1])
+with col_logo_2:
+    if os.path.exists("logo.jpeg"):
+        imagem_logo = Image.open("logo.jpeg")
+        st.image(imagem_logo, use_container_width=True)
+    else:
+        st.markdown('<h1 style="text-align: center; margin-bottom: 0;">BALCAR</h1>', unsafe_allow_html=True)
+
+st.markdown('<h3 style="text-align: center; margin-top: -10px;">🏆 BOLÃO DOS MOTORISTAS PARCEIROS 🇧🇷</h3>', unsafe_allow_html=True)
+st.markdown("---")
+
+# ==============================================================================
+# 3. LISTA OFICIAL DE MOTORISTAS BALCAR (ORDENADA POR ID)
+# ==============================================================================
+motoristas_lista = [
+    "4 - Balthazar Noel De Souza",
+    "104 - Silvio Adriano De Carvalho Silva",
+    "152 - Ranieri Pereira Da Silva",
+    "176 - Samuel Rosa Júnior",
+    "191 - Giorgio Luis Gomes Da Silva",
+    "197 - Johan Delvis Flores ESIS",
+    "202 - Mario sergio Bertoldo",
+    "225 - Fabio Correa De Oliveira",
+    "247 - Leticia Aparecida Rodrigues Vieira",
+    "267 - Laerte Do Amaral Junior",
+    "269 - Rafael Dos Santos Lima",
+    "285 - Leonardo Mota De Oliveira",
+    "291 - Sidnei Dias De Freitas Junior",
+    "309 - Luiz Paulo Feliz Fernandes",
+    "319 - Wellington Bruno Ferraz",
+    "320 - Kaique Ruivo",
+    "322 - Gilmar Ribeiro Ferraz",
+    "351 - Cleferson Araujo",
+    "367 - Thalles Ismael Dos Santos",
+    "397 - Juliano Eloy",
+    "399 - Valdinei Bruno De Souza",
+    "451 - Paulo Elias Servulo",
+    "465 - Vagner Da Silva Moraes",
+    "477 - Andreo Cristiano Gonzaga",
+    "479 - Claudinei Paes",
+    "486 - Silvia de Souza Martins",
+    "497 - Gerson Da Silva Altesor",
+    "498 - Luiz Antônio Gomes Dos Santos",
+    "524 - Murilo De Paula",
+    "526 - Matheus Arruda Pereira",
+    "540 - Marcela Souza De Almeida",
+    "542 - Vinicius Luiz Andrade Sousa",
+    "543 - william jose cirrea",
+    "545 - Araão Eduardo Dos Santos",
+    "548 - Luciano Pacheco",
+    "550 - Ricardo Claudino",
+    "551 - Guilherme Alexandre",
+    "554 - William Leandro Thomé",
+    "558 - Lucas Godinho Correa"
+]
+
+# ==============================================================================
+# 4. SISTEMA DE LEITURA INTELIGENTE DE DADOS
+# ==============================================================================
 def carregar_jogos():
-    """Carrega os jogos do Brasil e normaliza as datas vindas do Google Sheets."""
+    """Lê a aba 'jogos' interpretando as datas no formato internacional da sua planilha."""
     try:
         df = pd.read_csv(URL_JOGOS)
         df.columns = df.columns.str.strip()
@@ -13,34 +124,22 @@ def carregar_jogos():
             encerrado_val = str(row['Encerrado']).strip().upper()
             is_encerrado = True if encerrado_val in ['TRUE', '1', '1.0'] else False
             
-            # Formatos compatíveis com a planilha real (Ano-Mês-Dia)
-            formatos_data = [
-                "%Y-%m-%d %H:%M:%S",
-                "%Y-%m-%d %H:%M",
-                "%d/%m/%Y %H:%M"
-            ]
+            # Corrige minutos sem o zero à direita (ex: 12:0 -> 12:00)
+            if ":" in data_texto:
+                partes_hora = data_texto.split(":")
+                if len(partes_hora[-1]) == 1:
+                    data_texto = f"{data_texto}0"
             
-            dt_aware = None
-            for formato in formatos_data:
+            # Decodifica o padrão de data encontrado no seu Sheets (Ano-Mês-Dia)
+            try:
+                dt_naive = datetime.datetime.strptime(data_texto, "%Y-%m-%d %H:%M")
+                dt_aware = fuso_br.localize(dt_naive)
+            except:
                 try:
-                    # Tenta ler no padrão direto
-                    dt_naive = datetime.datetime.strptime(data_texto, formato)
+                    dt_naive = datetime.datetime.strptime(data_texto, "%d/%m/%Y %H:%M")
                     dt_aware = fuso_br.localize(dt_naive)
-                    break
                 except:
-                    try:
-                        # Tratamento caso os minutos tenham vindo sem o zero (ex: '12:0' -> '12:00')
-                        if ":" in data_texto and len(data_texto.split(":")[-1]) == 1:
-                            data_corrigida = data_texto + "0"
-                            dt_naive = datetime.datetime.strptime(data_corrigida, formato)
-                            dt_aware = fuso_br.localize(dt_naive)
-                            break
-                    except:
-                        continue
-            
-            # Se nenhum formato casar, usa a hora atual como fallback de segurança
-            if dt_aware is None:
-                dt_aware = datetime.datetime.now(fuso_br)
+                    dt_aware = datetime.datetime.now(fuso_br)
             
             jogos_dict[id_jogo] = {
                 "confronto": str(row['Confronto']).strip(),
@@ -50,5 +149,174 @@ def carregar_jogos():
             }
         return jogos_dict
     except Exception as e:
-        st.error(f"Erro ao ler aba 'jogos': {e}")
+        st.error(f"Erro de conexão com a planilha (aba 'jogos'): {e}")
         return {}
+
+def carregar_palpites():
+    """Busca os palpites salvos na aba Form_Responses."""
+    try:
+        df = pd.read_csv(URL_PALPITES)
+        df.columns = df.columns.str.strip()
+        palpites_lista = []
+        for _, row in df.iterrows():
+            # Mapeia dinamicamente usando o nome da coluna 'Participante' do seu novo form
+            palpites_lista.append({
+                "Participante": str(row['Participante']).strip(),
+                "Jogo": str(row['Jogo']).strip(),
+                "Palpite": str(row['Palpite']).strip().upper().replace(" ", "")
+            })
+        return palpites_lista
+    except:
+        return []
+
+# Inicialização de fuso horário brasileiro
+fuso_br = pytz.timezone('America/Sao_Paulo')
+agora_br = datetime.datetime.now(fuso_br)
+
+if "jogos" not in st.session_state:
+    st.session_state.jogos = carregar_jogos()
+if "palpites" not in st.session_state:
+    st.session_state.palpites = carregar_palpites()
+
+# Menu de navegação por abas limpas
+tab1, tab2, tab3 = st.tabs(["🎯 Lançar Palpite", "🔍 Palpites da Rodada", "🏆 Ranking Geral"])
+
+# ==============================================================================
+# ABA 1: LANÇAR PALPITE
+# ==============================================================================
+with tab1:
+    st.markdown("""
+        <div class="caixa-balcar">
+            <h4 style="margin-top:0;">📊 Regras de Pontuação</h4>
+            <ul style="margin-bottom:0; padding-left:20px;">
+                <li><strong>🟢 Placar Exato:</strong> Ganha 10 pontos</li>
+                <li><strong>🟡 Vencedor ou Empate:</strong> Ganha 4 pontos</li>
+                <li><strong>🔴 Erro de Tendência:</strong> Ganha 0 pontos</li>
+            </ul>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.subheader("✍️ Escolha um jogo para palpitar")
+    
+    # Menu Dropdown dos Motoristas Parceiros
+    nome = st.selectbox("Quem está jogando?", ["Selecione seu nome..."] + motoristas_lista)
+    
+    # Filtra jogos que ainda vão acontecer no fuso horário brasileiro
+    jogos_disponiveis = {
+        k: v for k, v in st.session_state.jogos.items() 
+        if not v["encerrado"] and agora_br < v["data_completa"]
+    }
+    
+    if not jogos_disponiveis:
+        st.info("📆 No momento, não há partidas futuras disponíveis para palpite.")
+    else:
+        jogo_selecionado = st.selectbox(
+            "Escolha o jogo:", 
+            list(jogos_disponiveis.keys()), 
+            format_func=lambda x: f"{jogos_disponiveis[x]['confronto']} ({jogos_disponiveis[x]['data_completa'].strftime('%d/%m - %H:%M')})"
+        )
+        
+        if nome != "Selecione seu nome...":
+            dados_jogo = jogos_disponiveis[jogo_selecionado]
+            nome_confronto = dados_jogo['confronto']
+            
+            # Trava anti-duplicados
+            ja_palpitou = False
+            palpite_anterior = ""
+            for p in st.session_state.palpites:
+                if p["Participante"].lower() == nome.lower() and p["Jogo"].upper().strip() == nome_confronto.upper().strip():
+                    ja_palpitou = True
+                    palpite_anterior = p["Palpite"]
+                    break
+            
+            if ja_palpitou:
+                st.warning(f"⚠️ {nome}, seu palpite para este confronto já está salvo como: **{palpite_anterior}**.")
+            else:
+                col1, col2 = st.columns(2)
+                times = nome_confronto.split(' X ')
+                
+                with col1:
+                    gols_1 = st.number_input(f"Gols: {times[0]}", min_value=0, value=0, step=1)
+                with col2:
+                    gols_2 = st.number_input(f"Gols: {times[1]}", min_value=0, value=0, step=1)
+                    
+                if st.button("Confirmar Palpite! 🚖"):
+                    placar_string = f"{gols_1}X{gols_2}"
+                    
+                    dados_envio = {ENTRY_NOME: nome, ENTRY_JOGO: nome_confronto, ENTRY_PALPITE: placar_string}
+                    resposta = requests.post(URL_FORM_POST, data=dados_envio)
+                    
+                    if resposta.status_code == 200 or "formResponse" in resposta.url:
+                        st.success(f"🏁 Palpite computado com sucesso, boa sorte!")
+                        st.session_state.palpites = carregar_palpites()
+                        st.rerun()
+                    else:
+                        st.error("❌ Ocorreu um erro ao enviar os dados para a nuvem.")
+
+# ==============================================================================
+# ABA 2: PALPITES DA RODADA (CORRIGIDO SEM NAMEERROR)
+# ==============================================================================
+with tab2:
+    st.subheader("🔍 Histórico de Palpites")
+    
+    # Correção do NameError: usando a lista oficial correta diretamente
+    busca_nome = st.selectbox("Filtrar por participante:", ["Todos"] + motoristas_lista, key="filtro_motorista")
+    
+    mapa_resultados = {str(info["confronto"]).upper().strip(): str(info["resultado"]).upper().replace(" ", "") for j_id, info in st.session_state.jogos.items() if info["resultado"]}
+
+    palpites_filtrados = [p for p in st.session_state.palpites if busca_nome == "Todos" or p["Participante"].lower() == busca_nome.lower()]
+            
+    if palpites_filtrados:
+        dados_tabela = []
+        for p in palpites_filtrados:
+            nome_jogo = str(p["Jogo"]).upper().strip()
+            palpite_limpo = str(p["Palpite"]).upper().replace(" ", "")
+            status_icone = "⏳ Jogo em andamento"
+            
+            if nome_jogo in mapa_resultados:
+                res_real = mapa_resultados[nome_jogo]
+                if palpite_limpo == res_real:
+                    status_icone = "🟢 Placar Exato (+10)"
+                else:
+                    try:
+                        g_p1, g_p2 = map(int, palpite_limpo.split("X"))
+                        g_r1, g_r2 = map(int, res_real.split("X"))
+                        v_p = 1 if g_p1 > g_p2 else (2 if g_p2 > g_p1 else 0)
+                        v_r = 1 if g_r1 > g_r2 else (2 if g_r2 > g_r1 else 0)
+                        status_icone = "🟡 Vencedor/Empate (+4)" if v_p == v_r else "🔴 0 pontos"
+                    except: 
+                        status_icone = "❌ Erro formatatação"
+            
+            dados_tabela.append({"Motorista": p["Participante"], "Jogo": p["Jogo"], "Palpite": p["Palpite"], "Resultado": status_icone})
+        st.dataframe(pd.DataFrame(dados_tabela), use_container_width=True, hide_index=True)
+    else:
+        st.info("Nenhum palpite localizado para o motorista selecionado.")
+
+# ==============================================================================
+# ABA 3: RANKING GERAL (CÁLCULO AUTOMÁTICO)
+# ==============================================================================
+with tab3:
+    st.subheader("🏆 Classificação Geral")
+    pontos = {nome: 0 for nome in motoristas_lista}
+    mapa_ranking = {str(info["confronto"]).upper().strip(): str(info["resultado"]).upper().replace(" ", "") for j_id, info in st.session_state.jogos.items() if info["resultado"]}
+
+    for p in st.session_state.palpites:
+        ch = str(p["Jogo"]).upper().strip()
+        pl = str(p["Palpite"]).upper().replace(" ", "")
+        mot = p["Participante"]
+        
+        if ch in mapa_ranking and mot in pontos:
+            rr = mapa_ranking[ch]
+            if pl == rr:
+                pontos[mot] += 10
+            else:
+                try:
+                    g_p1, g_p2 = map(int, pl.split("X"))
+                    g_r1, g_r2 = map(int, rr.split("X"))
+                    if (g_p1 > g_p2 and g_r1 > g_r2) or (g_p2 > g_p1 and g_r2 > g_r1) or (g_p1 == g_p2 and g_r1 == g_r2):
+                        pontos[mot] += 4
+                except: 
+                    pass
+                    
+    df_ranking = pd.DataFrame(list(pontos.items()), columns=["Motorista", "Pontos"]).sort_values(by="Pontos", ascending=False)
+    st.dataframe(df_ranking, use_container_width=True, hide_index=True)
