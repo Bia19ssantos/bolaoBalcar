@@ -62,7 +62,7 @@ st.markdown("---")
 # 3. LISTA OFICIAL DE MOTORISTAS BALCAR
 # ==============================================================================
 motoristas_lista = [
-    "4 - Balthazar Noel De Souza", "104 - Silvio Adriano De Carvalho Silva", "152 - Ranieri Pereira Da Silva",
+    "104 - Silvio Adriano De Carvalho Silva", "152 - Ranieri Pereira Da Silva",
     "176 - Samuel Rosa Júnior", "191 - Giorgio Luis Gomes Da Silva", "197 - Johan Delvis Flores ESIS",
     "202 - Mario sergio Bertoldo", "225 - Fabio Correa De Oliveira", "247 - Leticia Aparecida Rodrigues Vieira",
     "267 - Laerte Do Amaral Junior", "269 - Rafael Dos Santos Lima", "285 - Leonardo Mota De Oliveira",
