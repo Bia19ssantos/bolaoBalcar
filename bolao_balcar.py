@@ -9,6 +9,7 @@ import os
 # ==============================================================================
 # 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE
 # ==============================================================================
+
 ID_PLANILHA = "1iB69UoTSku2biNsdAUYZrdglQU-m7M_wERQlIKagoDM"
 
 ID_DO_FORMS = "1FAIpQLScVPiQTPAOdGLFXrXpXuG-GdYs81JX939Qp1GPWf6c-KAyu5Q"
