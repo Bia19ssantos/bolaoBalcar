@@ -8,6 +8,7 @@ import os
 
 # ==============================================================================
 # 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE (APONTANDO PARA FORM_RESPONSES)
+
 # ==============================================================================
 ID_PLANILHA = "1iB69UoTSku2biNsdAUYZrdglQU-m7M_wERQlIKagoDM"
 
