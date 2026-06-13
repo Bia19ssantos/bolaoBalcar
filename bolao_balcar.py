@@ -9,7 +9,6 @@ import os
 # ==============================================================================
 # 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE
 # ==============================================================================
-
 ID_PLANILHA = "1iB69UoTSku2biNsdAUYZrdglQU-m7M_wERQlIKagoDM"
 
 ID_DO_FORMS = "1FAIpQLScVPiQTPAOdGLFXrXpXuG-GdYs81JX939Qp1GPWf6c-KAyu5Q"
@@ -23,13 +22,20 @@ URL_JOGOS = f"https://docs.google.com/spreadsheets/d/{ID_PLANILHA}/gviz/tq?tqx=o
 URL_PALPITES = f"https://docs.google.com/spreadsheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=Form_Responses"
 
 # ==============================================================================
-# 2. CONFIGURAÇÃO VISUAL PREMIUM (MODO ESCURO BALCAR)
+# 2. CONFIGURAÇÃO VISUAL PREMIUM FORÇADA (MODO ESCURO BALCAR ABSOLUTO)
 # ==============================================================================
 st.set_page_config(page_title="Bolão BALCAR - Rumo ao Hexa", page_icon="🚖", layout="centered")
 
+# Injeção de CSS para garantir fundo preto e letras brancas mesmo se o celular estiver no modo claro
 st.markdown("""
     <style>
-    .main { background-color: #000000; color: #ffffff; }
+    /* Força o fundo preto e texto branco no app inteiro */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+    }
+    
+    /* Caixa de informações estilizada */
     .caixa-balcar {
         background-color: #141414;
         padding: 20px;
@@ -40,10 +46,20 @@ st.markdown("""
         border-top: 1px solid #222222;
         border-bottom: 1px solid #222222;
     }
-    h1, h2, h3, h4 { color: #ffffff !important; font-family: 'Arial Black', sans-serif; }
-    .stTabs [data-baseweb="tab"] { color: #888888; }
-    .stTabs [data-baseweb="tab"]:hover { color: #ffffff; }
-    .stTabs [data-baseweb="tab"][aria-selected="true"] { color: #ffffff; border-bottom-color: #ffffff; }
+    
+    /* Força títulos em branco */
+    h1, h2, h3, h4, h5, h6, label, .stWidgetLabel p { 
+        color: #ffffff !important; 
+        font-family: 'Arial Black', sans-serif; 
+    }
+    
+    /* Customização das abas (Tabs) */
+    .stTabs [data-baseweb="tab"] { color: #888888 !important; }
+    .stTabs [data-baseweb="tab"]:hover { color: #ffffff !important; }
+    .stTabs [data-baseweb="tab"][aria-selected="true"] { 
+        color: #ffffff !important; 
+        border-bottom-color: #ffffff !important; 
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -113,7 +129,7 @@ def carregar_palpites():
                 "Jogo": jogo_limpo,
                 "Palpite": str(row['Palpite']).strip().upper().replace(" ", "")
             })
-        return palpites_lista
+        return palindromos_lista if 'palindromos_lista' in locals() else palpites_lista
     except:
         return []
 
@@ -165,7 +181,6 @@ with tab1:
                     palpite_anterior = p["Palpite"]
                     break
             
-            # TEXTO ALTERADO: Mensagem amigável de verificação em formato de alerta informativo
             if ja_palpitou:
                 st.warning(f"ℹ️ Olá {nome}! Identificamos que o seu palpite para {nome_confronto} já está registrado no sistema: **{palpite_anterior}**.")
                 st.info("🔒 Como cada motorista pode cadastrar apenas um palpite por jogo, as alterações foram desativadas para esta partida.")
@@ -184,7 +199,6 @@ with tab1:
                     resposta = requests.post(URL_FORM_POST, data=dados_envio)
                     
                     if resposta.status_code == 200 or "formResponse" in resposta.url:
-                        # MENSAGEM EM VERDE DE SUCESSO REAL
                         st.success("✅ Seu palpite foi registrado com sucesso! Boa sorte na rodada!")
                         st.rerun()
                     else:
