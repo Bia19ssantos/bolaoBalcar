@@ -7,12 +7,12 @@ from PIL import Image
 import os
 
 # ==============================================================================
-# 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE (CORRIGIDO PARA ABAS EM PORTUGUÊS)
+# 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE (LINKS CORRIGIDOS)
 # ==============================================================================
 # ID da sua planilha real do Google Sheets
 ID_PLANILHA = "1iB69UoTSku2biNsdAUYZrdglQU-m7M_wERQlIKagoDM"
 
-# IDs reais que você extraiu com sucesso do seu Google Forms
+# IDs reais do seu formulário Google Forms
 ID_DO_FORMS = "1FAIpQLScVPiQTPAOdGLFXrXpXuG-GdYs81JX939Qp1GPWf6c-KAyu5Q"
 URL_FORM_POST = f"https://docs.google.com/forms/d/e/{ID_DO_FORMS}/formResponse"
 
@@ -20,9 +20,9 @@ ENTRY_NOME = "entry.1751255709"     # Pergunta 'Participante'
 ENTRY_JOGO = "entry.345816005"      # Pergunta 'Jogo'
 ENTRY_PALPITE = "entry.1813555350"   # Pergunta 'Palpite'
 
-# CORREÇÃO DA URL: Apontando exatamente para os nomes reais das abas do seu Sheets
-URL_JOGOS = f"https://docs.google.com/sheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=jogos"
-URL_PALPITES = f"https://docs.google.com/sheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=Respostas ao formulário 1"
+# URLs CORRIGIDAS: Mudança vital de '/sheets/' para '/spreadsheets/' para eliminar o 404
+URL_JOGOS = f"https://docs.google.com/spreadsheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=jogos"
+URL_PALPITES = f"https://docs.google.com/spreadsheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=Respostas ao formulário 1"
 
 # ==============================================================================
 # 2. CONFIGURAÇÃO VISUAL PREMIUM (MODO ESCURO BALCAR)
@@ -49,7 +49,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Centralização da logo da BALCAR no topo
+# Centralização do logótipo da BALCAR no topo
 col_logo_1, col_logo_2, col_logo_3 = st.columns([1, 2, 1])
 with col_logo_2:
     if os.path.exists("logo.jpeg"):
@@ -110,7 +110,7 @@ motoristas_lista = [
 # 4. SISTEMA DE LEITURA INTELIGENTE DE DADOS
 # ==============================================================================
 def carregar_jogos():
-    """Lê a aba 'jogos' interpretando as datas no formato internacional da sua planilha."""
+    """Lê a aba 'jogos' interpretando as datas de forma resiliente."""
     try:
         df = pd.read_csv(URL_JOGOS)
         df.columns = df.columns.str.strip()
@@ -124,13 +124,13 @@ def carregar_jogos():
             encerrado_val = str(row['Encerrado']).strip().upper()
             is_encerrado = True if encerrado_val in ['TRUE', '1', '1.0'] else False
             
-            # Corrige minutos sem o zero à direita (ex: 12:0 -> 12:00)
+            # Ajusta minutos dinamicamente se o Sheets omitir o zero (ex: 12:0 -> 12:00)
             if ":" in data_texto:
                 partes_hora = data_texto.split(":")
                 if len(partes_hora[-1]) == 1:
                     data_texto = f"{data_texto}0"
             
-            # Decodifica o padrão de data encontrado no seu Sheets (Ano-Mês-Dia)
+            # Tenta decodificar o padrão Ano-Mês-Dia (padrão do seu Sheets)
             try:
                 dt_naive = datetime.datetime.strptime(data_texto, "%Y-%m-%d %H:%M")
                 dt_aware = fuso_br.localize(dt_naive)
@@ -153,13 +153,12 @@ def carregar_jogos():
         return {}
 
 def carregar_palpites():
-    """Busca os palpites salvos na aba Form_Responses."""
+    """Busca os palpites guardados na aba de respostas."""
     try:
         df = pd.read_csv(URL_PALPITES)
         df.columns = df.columns.str.strip()
         palpites_lista = []
         for _, row in df.iterrows():
-            # Mapeia dinamicamente usando o nome da coluna 'Participante' do seu novo form
             palpites_lista.append({
                 "Participante": str(row['Participante']).strip(),
                 "Jogo": str(row['Jogo']).strip(),
@@ -201,7 +200,7 @@ with tab1:
     # Menu Dropdown dos Motoristas Parceiros
     nome = st.selectbox("Quem está jogando?", ["Selecione seu nome..."] + motoristas_lista)
     
-    # Filtra jogos que ainda vão acontecer no fuso horário brasileiro
+    # Filtra jogos que ainda não aconteceram
     jogos_disponiveis = {
         k: v for k, v in st.session_state.jogos.items() 
         if not v["encerrado"] and agora_br < v["data_completa"]
@@ -230,7 +229,7 @@ with tab1:
                     break
             
             if ja_palpitou:
-                st.warning(f"⚠️ {nome}, seu palpite para este confronto já está salvo como: **{palpite_anterior}**.")
+                st.warning(f"⚠️ {nome}, o seu palpite para este confronto já está guardado como: **{palpite_anterior}**.")
             else:
                 col1, col2 = st.columns(2)
                 times = nome_confronto.split(' X ')
@@ -254,12 +253,11 @@ with tab1:
                         st.error("❌ Ocorreu um erro ao enviar os dados para a nuvem.")
 
 # ==============================================================================
-# ABA 2: PALPITES DA RODADA (CORRIGIDO SEM NAMEERROR)
+# ABA 2: PALPITES DA RODADA
 # ==============================================================================
 with tab2:
     st.subheader("🔍 Histórico de Palpites")
     
-    # Correção do NameError: usando a lista oficial correta diretamente
     busca_nome = st.selectbox("Filtrar por participante:", ["Todos"] + motoristas_lista, key="filtro_motorista")
     
     mapa_resultados = {str(info["confronto"]).upper().strip(): str(info["resultado"]).upper().replace(" ", "") for j_id, info in st.session_state.jogos.items() if info["resultado"]}
@@ -285,7 +283,7 @@ with tab2:
                         v_r = 1 if g_r1 > g_r2 else (2 if g_r2 > g_r1 else 0)
                         status_icone = "🟡 Vencedor/Empate (+4)" if v_p == v_r else "🔴 0 pontos"
                     except: 
-                        status_icone = "❌ Erro formatatação"
+                        status_icone = "❌ Erro formatação"
             
             dados_tabela.append({"Motorista": p["Participante"], "Jogo": p["Jogo"], "Palpite": p["Palpite"], "Resultado": status_icone})
         st.dataframe(pd.DataFrame(dados_tabela), use_container_width=True, hide_index=True)
@@ -293,7 +291,7 @@ with tab2:
         st.info("Nenhum palpite localizado para o motorista selecionado.")
 
 # ==============================================================================
-# ABA 3: RANKING GERAL (CÁLCULO AUTOMÁTICO)
+# ABA 3: RANKING GERAL
 # ==============================================================================
 with tab3:
     st.subheader("🏆 Classificação Geral")
