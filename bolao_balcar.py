@@ -7,7 +7,7 @@ from PIL import Image
 import os
 
 # ==============================================================================
-# 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE (ABAS EM PORTUGUÊS)
+# 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE
 # ==============================================================================
 ID_PLANILHA = "1iB69UoTSku2biNsdAUYZrdglQU-m7M_wERQlIKagoDM"
 
@@ -61,7 +61,7 @@ st.markdown("---")
 # 3. LISTA OFICIAL DE MOTORISTAS BALCAR
 # ==============================================================================
 motoristas_lista = [
-    "104 - Silvio Adriano De Carvalho Silva", "152 - Ranieri Pereira Da Silva",
+    "4 - Balthazar Noel De Souza", "104 - Silvio Adriano De Carvalho Silva", "152 - Ranieri Pereira Da Silva",
     "176 - Samuel Rosa Júnior", "191 - Giorgio Luis Gomes Da Silva", "197 - Johan Delvis Flores ESIS",
     "202 - Mario sergio Bertoldo", "225 - Fabio Correa De Oliveira", "247 - Leticia Aparecida Rodrigues Vieira",
     "267 - Laerte Do Amaral Junior", "269 - Rafael Dos Santos Lima", "285 - Leonardo Mota De Oliveira",
@@ -77,7 +77,7 @@ motoristas_lista = [
 ]
 
 # ==============================================================================
-# 4. SISTEMA DE LEITURA CORRIGIDO PARA COLUNA 'PARTICIPANTE'
+# 4. SISTEMA DE LEITURA TRATADO E NORMALIZADO
 # ==============================================================================
 def carregar_jogos():
     try:
@@ -107,8 +107,11 @@ def carregar_jogos():
                 except:
                     dt_aware = datetime.datetime.now(fuso_br)
             
+            # Força o confronto a ficar padronizado em letras maiúsculas com espaço e "X" maiúsculo
+            confronto_limpo = str(row['Confronto']).strip().upper().replace(" X ", " X ")
+            
             jogos_dict[id_jogo] = {
-                "confronto": str(row['Confronto']).strip(),
+                "confronto": confronto_limpo,
                 "data_completa": dt_aware,
                 "resultado": str(row['Resultado']).strip() if pd.notna(row['Resultado']) else None,
                 "encerrado": is_encerrado
@@ -124,26 +127,28 @@ def carregar_palpites():
         df.columns = df.columns.str.strip()
         palpites_lista = []
         for _, row in df.iterrows():
-            # AJUSTE CHAVE: Lendo da coluna 'Participante' gerada pelo seu novo formulário
             col_nome = 'Participante' if 'Participante' in df.columns else df.columns[1]
+            
+            # Normaliza o nome do jogo vindo do formulário para maiúsculo
+            jogo_form = str(row['Jogo']).strip().upper().replace(" X ", " X ")
+            
             palpites_lista.append({
                 "Participante": str(row[col_nome]).strip(),
-                "Jogo": str(row['Jogo']).strip(),
+                "Jogo": jogo_form,
                 "Palpite": str(row['Palpite']).strip().upper().replace(" ", "")
             })
         return palpites_lista
     except:
         return []
 
-if "jogos" not in st.session_state:
-    st.session_state.jogos = carregar_jogos()
-if "palpites" not in st.session_state:
-    st.session_state.palpites = carregar_palpites()
+# Forçar recarregamento limpo dos dados sempre
+st.session_state.jogos = carregar_jogos()
+st.session_state.palpites = carregar_palpites()
 
 tab1, tab2, tab3 = st.tabs(["🎯 Lançar Palpite", "🔍 Palpites da Rodada", "🏆 Ranking Geral"])
 
 # ==============================================================================
-# ABA 1: LANÇAR PALPITE (EXIBE TODOS OS JOGOS NÃO ENCERRADOS)
+# ABA 1: LANÇAR PALPITE
 # ==============================================================================
 with tab1:
     st.markdown("""
@@ -161,7 +166,6 @@ with tab1:
     
     nome = st.selectbox("Quem está jogando?", ["Selecione seu nome..."] + motoristas_lista)
     
-    # AJUSTE CHAVE: Removida a trava de tempo. Mostra qualquer jogo onde Encerrado = FALSE
     jogos_disponiveis = {
         k: v for k, v in st.session_state.jogos.items() if not v["encerrado"]
     }
@@ -172,24 +176,27 @@ with tab1:
         jogo_selecionado = st.selectbox(
             "Escolha o jogo:", 
             list(jogos_disponiveis.keys()), 
-            format_func=lambda x: f"{jogos_disponiveis[x]['confronto']} ({jogos_disponiveis[x]['data_completa'].strftime('%d/%m - %H:%M')})"
+            format_func=lambda x: f"{jogos_disponiveis[x]['confronto']}"
         )
         
+        dados_jogo = jogos_disponiveis[jogo_selecionado]
+        nome_confronto = dados_jogo['confronto']
+        
+        # Só executa a validação se um motorista real for selecionado
         if nome != "Selecione seu nome...":
-            dados_jogo = jogos_disponiveis[jogo_selecionado]
-            nome_confronto = dados_jogo['confronto']
-            
-            # Validação estrita anti-duplicados por motorista e confronto
             ja_palpitou = False
             palpite_anterior = ""
+            
+            # Compara tudo em maiúsculo e remove espaços extras de segurança
             for p in st.session_state.palpites:
-                if p["Participante"].lower() == nome.lower() and p["Jogo"].upper().strip() == nome_confronto.upper().strip():
+                if p["Participante"].lower() == nome.lower() and p["Jogo"].strip() == nome_confronto.strip():
                     ja_palpitou = True
                     palpite_anterior = p["Palpite"]
                     break
             
             if ja_palpitou:
-                st.error(f"🚫 {nome}, você já registrou um palpite para {nome_confronto}: **{palpite_anterior}**. Não é permitido alterar ou palpitar novamente.")
+                st.error(f"🚫 {nome}, você já registrou um palpite para {nome_confronto}: **{palpite_anterior}**.")
+                st.info("💡 Não é permitido enviar mais de um palpite por jogo.")
             else:
                 col1, col2 = st.columns(2)
                 times = nome_confronto.split(' X ')
@@ -206,7 +213,6 @@ with tab1:
                     
                     if resposta.status_code == 200 or "formResponse" in resposta.url:
                         st.success(f"🏁 Palpite computado com sucesso, boa sorte!")
-                        st.session_state.palpites = carregar_palpites()
                         st.rerun()
                     else:
                         st.error("❌ Ocorreu um erro ao enviar os dados para a nuvem.")
