@@ -7,22 +7,22 @@ from PIL import Image
 import os
 
 # ==============================================================================
-# 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE (ATUALIZADO COM SEUS LINKS REAIS)
+# 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE (CORRIGIDO PARA ABAS EM PORTUGUÊS)
 # ==============================================================================
-# ID da sua planilha do Google Sheets
+# ID da sua planilha real do Google Sheets
 ID_PLANILHA = "1iB69UoTSku2biNsdAUYZrdglQU-m7M_wERQlIKagoDM"
 
-# Seus novos IDs reais do Google Forms extraídos com sucesso!
+# IDs reais que você extraiu com sucesso do seu Google Forms
 ID_DO_FORMS = "1FAIpQLScVPiQTPAOdGLFXrXpXuG-GdYs81JX939Qp1GPWf6c-KAyu5Q"
 URL_FORM_POST = f"https://docs.google.com/forms/d/e/{ID_DO_FORMS}/formResponse"
 
-ENTRY_NOME = "entry.1751255709"     # ID da pergunta 'Participante'
-ENTRY_JOGO = "entry.345816005"      # ID da pergunta 'Jogo'
-ENTRY_PALPITE = "entry.1813555350"   # ID da pergunta 'Palpite'
+ENTRY_NOME = "entry.1751255709"     # Pergunta 'Participante'
+ENTRY_JOGO = "entry.345816005"      # Pergunta 'Jogo'
+ENTRY_PALPITE = "entry.1813555350"   # Pergunta 'Palpite'
 
-# Links de leitura automática baseados na planilha e aba configuradas
+# CORREÇÃO DA URL: Apontando exatamente para os nomes reais das abas do seu Sheets
 URL_JOGOS = f"https://docs.google.com/sheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=jogos"
-URL_PALPITES = f"https://docs.google.com/sheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=Form_Responses"
+URL_PALPITES = f"https://docs.google.com/sheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=Respostas ao formulário 1"
 
 # ==============================================================================
 # 2. CONFIGURAÇÃO VISUAL PREMIUM (MODO ESCURO BALCAR)
