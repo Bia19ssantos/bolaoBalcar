@@ -7,7 +7,7 @@ from PIL import Image
 import os
 
 # ==============================================================================
-# 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE
+# 1. CONFIGURAÇÕES INTEGRADAS DO GOOGLE (APONTANDO PARA FORM_RESPONSES)
 # ==============================================================================
 ID_PLANILHA = "1iB69UoTSku2biNsdAUYZrdglQU-m7M_wERQlIKagoDM"
 
@@ -18,8 +18,9 @@ ENTRY_NOME = "entry.1751255709"     # Pergunta 'Participante'
 ENTRY_JOGO = "entry.345816005"      # Pergunta 'Jogo'
 ENTRY_PALPITE = "entry.1813555350"   # Pergunta 'Palpite'
 
+# Links de comunicação direta corrigidos para puxar a aba Form_Responses exibida no print
 URL_JOGOS = f"https://docs.google.com/spreadsheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=jogos"
-URL_PALPITES = f"https://docs.google.com/spreadsheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=Respostas ao formulário 1"
+URL_PALPITES = f"https://docs.google.com/spreadsheets/d/{ID_PLANILHA}/gviz/tq?tqx=out:csv&sheet=Form_Responses"
 
 # ==============================================================================
 # 2. CONFIGURAÇÃO VISUAL PREMIUM (MODO ESCURO BALCAR)
@@ -77,71 +78,52 @@ motoristas_lista = [
 ]
 
 # ==============================================================================
-# 4. SISTEMA DE LEITURA TRATADO E NORMALIZADO
+# 4. SISTEMA DE LEITURA COM EXPIRAÇÃO DE CACHE (ANTI-DUPLICADOS EM TEMPO REAL)
 # ==============================================================================
 def carregar_jogos():
     try:
-        df = pd.read_csv(URL_JOGOS)
+        # Adiciona um marcador de tempo para forçar o Google a mandar os dados mais recentes
+        df = pd.read_csv(f"{URL_JOGOS}&cachebuster={datetime.datetime.now().timestamp()}")
         df.columns = df.columns.str.strip()
         jogos_dict = {}
-        fuso_br = pytz.timezone('America/Sao_Paulo')
         
         for _, row in df.iterrows():
             id_jogo = str(row['Id']).strip()
-            data_texto = str(row['Data']).strip()
             encerrado_val = str(row['Encerrado']).strip().upper()
             is_encerrado = True if encerrado_val in ['TRUE', '1', '1.0'] else False
             
-            if ":" in data_texto:
-                partes_hora = data_texto.split(":")
-                if len(partes_hora[-1]) == 1:
-                    data_texto = f"{data_texto}0"
-            
-            try:
-                dt_naive = datetime.datetime.strptime(data_texto, "%Y-%m-%d %H:%M")
-                dt_aware = fuso_br.localize(dt_naive)
-            except:
-                try:
-                    dt_naive = datetime.datetime.strptime(data_texto, "%d/%m/%Y %H:%M")
-                    dt_aware = fuso_br.localize(dt_naive)
-                except:
-                    dt_aware = datetime.datetime.now(fuso_br)
-            
-            # Força o confronto a ficar padronizado em letras maiúsculas com espaço e "X" maiúsculo
-            confronto_limpo = str(row['Confronto']).strip().upper().replace(" X ", " X ")
+            # Limpa o nome do confronto retirando espaços extras internos
+            confronto_limpo = " ".join(str(row['Confronto']).strip().upper().split())
             
             jogos_dict[id_jogo] = {
                 "confronto": confronto_limpo,
-                "data_completa": dt_aware,
                 "resultado": str(row['Resultado']).strip() if pd.notna(row['Resultado']) else None,
                 "encerrado": is_encerrado
             }
         return jogos_dict
-    except Exception as e:
-        st.error(f"Erro de conexão com a planilha (aba 'jogos'): {e}")
+    except:
         return {}
 
 def carregar_palpites():
     try:
-        df = pd.read_csv(URL_PALPITES)
+        df = pd.read_csv(f"{URL_PALPITES}&cachebuster={datetime.datetime.now().timestamp()}")
         df.columns = df.columns.str.strip()
         palpites_lista = []
+        
+        col_nome = 'Participante' if 'Participante' in df.columns else df.columns[1]
+        
         for _, row in df.iterrows():
-            col_nome = 'Participante' if 'Participante' in df.columns else df.columns[1]
-            
-            # Normaliza o nome do jogo vindo do formulário para maiúsculo
-            jogo_form = str(row['Jogo']).strip().upper().replace(" X ", " X ")
-            
+            jogo_limpo = " ".join(str(row['Jogo']).strip().upper().split())
             palpites_lista.append({
                 "Participante": str(row[col_nome]).strip(),
-                "Jogo": jogo_form,
+                "Jogo": jogo_limpo,
                 "Palpite": str(row['Palpite']).strip().upper().replace(" ", "")
             })
         return palpites_lista
     except:
         return []
 
-# Forçar recarregamento limpo dos dados sempre
+# Carrega os dados mais frescos do servidor do Sheets
 st.session_state.jogos = carregar_jogos()
 st.session_state.palpites = carregar_palpites()
 
@@ -166,9 +148,7 @@ with tab1:
     
     nome = st.selectbox("Quem está jogando?", ["Selecione seu nome..."] + motoristas_lista)
     
-    jogos_disponiveis = {
-        k: v for k, v in st.session_state.jogos.items() if not v["encerrado"]
-    }
+    jogos_disponiveis = {k: v for k, v in st.session_state.jogos.items() if not v["encerrado"]}
     
     if not jogos_disponiveis:
         st.info("📆 No momento, não há partidas disponíveis para palpite.")
@@ -187,16 +167,16 @@ with tab1:
             ja_palpitou = False
             palpite_anterior = ""
             
-            # Compara tudo em maiúsculo e remove espaços extras de segurança
             for p in st.session_state.palpites:
-                if p["Participante"].lower() == nome.lower() and p["Jogo"].strip() == nome_confronto.strip():
+                # Compara limpando qualquer divergência de maiúsculas/minúsculas e de espaços extras
+                if p["Participante"].strip().lower() == nome.strip().lower() and p["Jogo"] == nome_confronto:
                     ja_palpitou = True
                     palpite_anterior = p["Palpite"]
                     break
             
             if ja_palpitou:
                 st.error(f"🚫 {nome}, você já registrou um palpite para {nome_confronto}: **{palpite_anterior}**.")
-                st.info("💡 Não é permitido enviar mais de um palpite por jogo.")
+                st.info("💡 Não é permitido enviar mais de um palpite por jogo. O seu botão de envio foi bloqueado!")
             else:
                 col1, col2 = st.columns(2)
                 times = nome_confronto.split(' X ')
